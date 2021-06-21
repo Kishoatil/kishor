@@ -1,0 +1,31 @@
+name: RDP
+
+on: workflow_dispatch
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+    timeout-minutes: 9999
+
+    steps:
+    - name: checkout repo
+      uses: actions/checkout@v2
+    - name: Enable RDP Access.
+      run: | 
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
+    - name: Prepare RDB
+      run: cmd /c call Files/set_user.bat
+      env:
+        PASSWORD: ${{ secrets.PASSWORD }}
+    - name: Create Tunnel
+      run: |
+        cd Files
+        Invoke-Webrequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
+        Expand-Archive ".\ngrok.zip" ".\"
+        .\ngrok authtoken ${{ secrets.NGROK_AUTH }}
+        .\start_tunnel.bat
+    - name: loop
+      run: Files/loop.bat
